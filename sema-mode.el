@@ -362,20 +362,24 @@ which this function falls back to after checking Sema-specific forms."
 ;; ── REPL ───────────────────────────────────────────────────────────────
 
 (defun sema-repl ()
-  "Start an inferior Sema REPL process."
+  "Start Sema in a Ghostel terminal."
   (interactive)
-  (let ((buffer (make-comint "sema" sema-program)))
-    (pop-to-buffer buffer)
-    (setq-local comint-prompt-regexp "^sema> *")))
+  (require 'ghostel)
+  (let ((buffer (get-buffer-create "*sema*")))
+    (unless (process-live-p (get-buffer-process buffer))
+      (ghostel-exec buffer sema-program))
+    (pop-to-buffer buffer)))
 
 (defun sema-send-region (start end)
   "Send the region between START and END to the Sema REPL."
   (interactive "r")
-  (let ((proc (get-buffer-process "*sema*")))
-    (unless proc
+  (let ((buffer (get-buffer "*sema*"))
+        (source (buffer-substring-no-properties start end)))
+    (unless (and buffer (process-live-p (get-buffer-process buffer)))
       (error "No Sema REPL running — start one with M-x sema-repl"))
-    (comint-send-string proc (buffer-substring-no-properties start end))
-    (comint-send-string proc "\n")))
+    (with-current-buffer buffer
+      (ghostel-send-string source)
+      (ghostel-send-string "\r"))))
 
 (defun sema-send-last-sexp ()
   "Send the sexp before point to the Sema REPL."
